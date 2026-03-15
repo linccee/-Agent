@@ -1,0 +1,890 @@
+/* ============================================================
+   SHOPPING AGENT — Dark Luxe Terminal
+   Fonts: Space Grotesk (display) + JetBrains Mono (code/steps)
+   Palette:
+     --bg-base:       #0d0d0f   (deep obsidian)
+     --bg-card:       #13131a   (card surface)
+     --bg-input:      #1a1a24   (input area)
+     --accent-amber:  #f5a623   (primary accent)
+     --accent-dim:    #b87a18   (muted amber)
+     --text-primary:  #e8e8f0   (off-white)
+     --text-muted:    #6e6e8a   (muted grey)
+     --border:        #2a2a38   (subtle border)
+     --success:       #4ade80
+     --danger:        #f87171
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── CSS Variables ─────────────────────────────────────────── */
+:root {
+  --bg-base: #0d0d0f;
+  --bg-card: #13131a;
+  --bg-input: #1a1a24;
+  --accent: #f5a623;
+  --accent-dim: #b87a18;
+  --accent-glow: rgba(245, 166, 35, 0.15);
+  --text-primary: #e8e8f0;
+  --text-muted: #6e6e8a;
+  --border: #2a2a38;
+  --success: #4ade80;
+  --radius: 12px;
+  --radius-sm: 6px;
+}
+
+/* ── Global Reset ───────────────────────────────────────────── */
+html,
+body,
+[data-testid="stAppViewContainer"],
+[data-testid="stApp"] {
+  background-color: var(--bg-base) !important;
+  color: var(--text-primary) !important;
+  font-family: 'Space Grotesk', sans-serif !important;
+}
+
+/* ── Hide Streamlit Chrome ──────────────────────────────────── */
+#MainMenu,
+footer,
+header {
+  visibility: hidden !important;
+}
+
+[data-testid="stDecoration"] {
+  display: none !important;
+}
+
+/* ── Main content area ──────────────────────────────────────── */
+[data-testid="stMain"] {
+  background-color: var(--bg-base) !important;
+}
+
+.main .block-container {
+  padding-top: 1.5rem;
+  padding-bottom: 6rem;
+  max-width: 860px;
+}
+
+/* ── Sidebar ────────────────────────────────────────────────── */
+[data-testid="stSidebar"] {
+  background-color: var(--bg-card) !important;
+  border-right: 1px solid var(--border) !important;
+}
+
+[data-testid="stSidebar"] * {
+  font-family: 'Space Grotesk', sans-serif !important;
+}
+
+/* ── App Title in Sidebar ───────────────────────────────────── */
+.ag-app-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 1rem 0 0.5rem;
+}
+
+.ag-app-title h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.ag-app-title .ag-accent {
+  color: var(--accent);
+}
+
+.ag-logo {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+/* ── Sidebar Status Badge ───────────────────────────────────── */
+.ag-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  color: var(--success);
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin: 0.5rem 0;
+}
+
+.ag-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+}
+
+/* ── Sidebar Info Row ───────────────────────────────────────── */
+.ag-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+
+.ag-info-label {
+  color: var(--text-muted);
+}
+
+.ag-info-value {
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+}
+
+/* ── Sidebar Divider ────────────────────────────────────────── */
+.ag-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1rem 0;
+}
+
+/* ── Sidebar Section Header ─────────────────────────────────── */
+.ag-section-header {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 1rem 0 0.5rem;
+}
+
+/* ── Tip item ───────────────────────────────────────────────── */
+.ag-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.ag-tip-icon {
+  color: var(--accent);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Chat Area Header ───────────────────────────────────────── */
+.ag-chat-header {
+  text-align: center;
+  padding: 2rem 0 1rem;
+  animation: fadeInDown 0.6s ease forwards;
+}
+
+.ag-chat-header h2 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.02em;
+}
+
+.ag-chat-header h2 span {
+  color: var(--accent);
+}
+
+.ag-chat-header p {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Message Container ──────────────────────────────────────── */
+.ag-msg-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 1.25rem;
+  animation: fadeInUp 0.35s ease forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ag-msg-row.user {
+  flex-direction: row-reverse;
+}
+
+/* ── Avatar ─────────────────────────────────────────────────── */
+.ag-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ag-avatar.agent {
+  background: var(--accent-glow);
+  border: 1px solid var(--accent-dim);
+  color: var(--accent);
+}
+
+.ag-avatar.user {
+  background: rgba(138, 116, 255, 0.15);
+  border: 1px solid rgba(138, 116, 255, 0.3);
+  color: #8a74ff;
+}
+
+/* ── Bubble ─────────────────────────────────────────────────── */
+.ag-bubble {
+  max-width: 78%;
+  padding: 0.9rem 1.1rem;
+  border-radius: var(--radius);
+  line-height: 1.65;
+  font-size: 0.9rem;
+}
+
+.ag-bubble.agent {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-top-left-radius: 4px;
+}
+
+.ag-bubble.user {
+  background: rgba(138, 116, 255, 0.12);
+  border: 1px solid rgba(138, 116, 255, 0.25);
+  border-top-right-radius: 4px;
+  color: var(--text-primary);
+}
+
+/* Markdown inside bubbles */
+.ag-bubble p {
+  margin: 0 0 0.5rem;
+}
+
+.ag-bubble p:last-child {
+  margin-bottom: 0;
+}
+
+.ag-bubble strong {
+  color: var(--accent);
+}
+
+.ag-bubble hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.75rem 0;
+}
+
+.ag-bubble h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0.75rem 0 0.4rem;
+}
+
+.ag-bubble ul,
+.ag-bubble ol {
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+
+.ag-bubble li {
+  margin-bottom: 0.25rem;
+}
+
+/* ── Tool Steps ─────────────────────────────────────────────── */
+.ag-steps-wrap {
+  margin: 1rem 0 1.25rem;
+  animation: fadeInUp 0.4s ease forwards;
+}
+
+.ag-steps-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-dim);
+  user-select: none;
+}
+
+.ag-steps-header:hover {
+  color: var(--accent);
+}
+
+.ag-step-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.9rem;
+  margin-bottom: 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.76rem;
+}
+
+.ag-step-tool-name {
+  color: var(--accent);
+  font-weight: 500;
+  font-size: 0.78rem;
+  margin-bottom: 4px;
+}
+
+.ag-step-label {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 6px 0 2px;
+}
+
+.ag-step-value {
+  color: var(--text-primary);
+  word-break: break-all;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+
+/* ── Thinking Spinner ───────────────────────────────────────── */
+.ag-thinking {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.9rem 1.1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 1.25rem;
+  animation: fadeInUp 0.35s ease forwards;
+}
+
+.ag-thinking-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.ag-thinking-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: blink 1.4s ease-in-out infinite;
+}
+
+.ag-thinking-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.ag-thinking-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes blink {
+
+  0%,
+  80%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ── Welcome / Empty State ──────────────────────────────────── */
+.ag-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 3rem 1rem 2rem;
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.ag-empty-icon {
+  font-size: 3.5rem;
+  margin-bottom: 1rem;
+  filter: drop-shadow(0 0 18px rgba(245, 166, 35, 0.4));
+}
+
+.ag-empty-state h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem;
+}
+
+.ag-empty-state p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  max-width: 340px;
+  margin: 0;
+}
+
+/* ── Example prompts ─────────────────────────────────────────── */
+.ag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+/* ── Streamlit Button Override ──────────────────────────────── */
+.stButton>button {
+  font-family: 'Space Grotesk', sans-serif !important;
+  background: transparent !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-muted) !important;
+  border-radius: var(--radius-sm) !important;
+  font-size: 0.82rem !important;
+  padding: 0.35rem 0.8rem !important;
+  transition: border-color 0.2s, color 0.2s !important;
+}
+
+.stButton>button:hover {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  background: var(--accent-glow) !important;
+}
+
+/* Primary CTA button */
+.stButton[data-testid="stBaseButton-primary"]>button,
+button[kind="primary"] {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #0d0d0f !important;
+  font-weight: 600 !important;
+}
+
+/* Clear button in sidebar */
+.ag-clear-btn>button {
+  width: 100% !important;
+  border-color: rgba(248, 113, 113, 0.3) !important;
+  color: #f87171 !important;
+}
+
+.ag-clear-btn>button:hover {
+  border-color: #f87171 !important;
+  background: rgba(248, 113, 113, 0.1) !important;
+  color: #f87171 !important;
+}
+
+/* ── Chat Input Bottom Container Fix ─────────────────────────────────────────── */
+[data-testid="stBottom"] {
+  background: transparent !important;
+}
+
+[data-testid="stBottom"]>div {
+  background: transparent !important;
+}
+
+/* ── Chat Input (Liquid Glass) ─────────────────────────────────────────────── */
+[data-testid="stChatInput"] {
+  background: rgba(26, 26, 36, 0.45) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+  border-radius: var(--radius) !important;
+  font-family: 'Space Grotesk', sans-serif !important;
+  padding: 0px !important;
+  margin-bottom: 1rem !important;
+}
+
+[data-testid="stChatInput"] * {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+[data-testid="stChatInput"]>div,
+[data-testid="stChatInput"]>div>div {
+  border: none !important;
+}
+
+[data-testid="stChatInput"]:focus-within {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-testid="stChatInput"] textarea {
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  font-family: 'Space Grotesk', sans-serif !important;
+  font-size: 0.95rem !important;
+}
+
+[data-testid="stChatInput"] textarea::placeholder {
+  color: var(--text-muted) !important;
+  -webkit-text-fill-color: var(--text-muted) !important;
+}
+
+[data-testid="stChatInputSubmitButton"] svg {
+  fill: var(--accent) !important;
+}
+
+/* ── Streamlit expander and Dialog overrides (Liquid Glass) ────────────────── */
+details {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+details summary {
+  color: var(--accent-dim) !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* Base Modal/Dialog styling applying liquid glass */
+[data-testid="stDialog"] > div[role="dialog"] {
+  background: rgba(26, 26, 36, 0.45) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  border-radius: var(--radius) !important;
+}
+
+[data-testid="stDialog"] header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+  background: transparent !important;
+}
+
+[data-testid="stDialog"] h2 {
+  color: var(--text-primary) !important;
+  font-family: 'Space Grotesk', sans-serif !important;
+}
+
+/* ── History Grid and Action Buttons ────────────────────────────────────────── */
+.ag-action-btn > button {
+  width: 100% !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.ag-history-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ── st.chat_message overrides ──────────────────────────────── */
+
+/* Base container for every chat message */
+[data-testid="stChatMessage"] {
+  background: rgba(26, 26, 36, 0.4) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+  border-radius: var(--radius) !important;
+  padding: 0.85rem 1rem !important;
+  margin-bottom: 0.75rem !important;
+  font-family: 'Space Grotesk', sans-serif !important;
+  animation: fadeInUp 0.3s ease forwards;
+}
+
+/* User messages — subtle violet tint, right-leaning feel */
+[data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
+  background: rgba(138, 116, 255, 0.08) !important;
+  border-color: rgba(138, 116, 255, 0.22) !important;
+}
+
+/* Assistant messages — amber left border accent */
+[data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-assistant"]) {
+  border-left: 3px solid var(--accent-dim) !important;
+}
+
+/* Avatar icon background */
+[data-testid="chatAvatarIcon-user"] {
+  background: rgba(138, 116, 255, 0.2) !important;
+  border: 1px solid rgba(138, 116, 255, 0.35) !important;
+  border-radius: 50% !important;
+}
+
+[data-testid="chatAvatarIcon-assistant"] {
+  background: var(--accent-glow) !important;
+  border: 1px solid var(--accent-dim) !important;
+  border-radius: 50% !important;
+}
+
+/* Message body typography */
+[data-testid="stChatMessage"] p,
+[data-testid="stChatMessage"] li {
+  font-size: 0.9rem !important;
+  line-height: 1.65 !important;
+  color: var(--text-primary) !important;
+}
+
+[data-testid="stChatMessage"] strong {
+  color: var(--accent) !important;
+}
+
+[data-testid="stChatMessage"] h3 {
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+
+[data-testid="stChatMessage"] hr {
+  border-color: var(--border) !important;
+}
+
+[data-testid="stChatMessage"] code {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 0.78rem !important;
+  background: rgba(245, 166, 35, 0.1) !important;
+  color: var(--accent) !important;
+  padding: 1px 5px !important;
+  border-radius: 3px !important;
+}
+
+
+
+/* ── Active Tool Pill ────────────────────────────────────────── */
+/* Shown while a tool call is in progress during streaming       */
+.ag-tool-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent-glow);
+  border: 1px solid var(--accent-dim);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+  animation: fadeInUp 0.25s ease forwards;
+}
+
+/* ── Timeline (Liquid Glass Collapsible) ────────────────────── */
+.ag-timeline-details {
+  background: rgba(26, 26, 36, 0.3);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  margin: 1.5rem 0 0.5rem 0;
+  overflow: hidden;
+  max-height: 52px; /* Closed height */
+  transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+}
+
+.ag-timeline-details[open] {
+  max-height: 2500px; /* Arbitrary large height for expansion */
+  transition: max-height 0.8s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.ag-timeline-summary {
+  padding: 0.85rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  list-style: none; /* Hide default triangle in many browsers */
+  user-select: none;
+  border-bottom: 1px solid transparent;
+  transition: background 0.3s ease, border-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ag-timeline-summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Custom chevron for animation */
+.ag-timeline-summary::after {
+  content: "▼";
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ag-timeline-details[open] .ag-timeline-summary::after {
+  transform: rotate(-180deg);
+}
+
+.ag-timeline-summary:hover {
+  background: rgba(245, 166, 35, 0.08);
+}
+
+.ag-timeline-details[open] .ag-timeline-summary {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 1rem;
+}
+
+.ag-timeline {
+  display: flex;
+  flex-direction: column;
+  padding: 0 1rem;
+}
+
+.ag-timeline-item {
+  position: relative;
+  padding-left: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-left: 2px solid var(--border);
+}
+
+.ag-timeline-item-last {
+  border-left-color: transparent;
+  padding-bottom: 0;
+}
+
+.ag-timeline-dot {
+  position: absolute;
+  left: -6px;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.glass-panel {
+  background: rgba(26, 26, 36, 0.4);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.ag-step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0.75rem;
+}
+
+.ag-step-badge {
+  background: var(--accent-dim);
+  color: #000;
+  font-weight: 700;
+  font-size: 0.75rem;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.ag-step-tool {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.ag-step-io {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ag-step-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--accent-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.25rem;
+}
+
+.ag-step-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
