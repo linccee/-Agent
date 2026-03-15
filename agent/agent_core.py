@@ -1,38 +1,67 @@
 import queue
 import threading
 import logging
+import sys
+from datetime import date
 
 # ── Debug logger — writes to file so Streamlit stdout capture doesn't hide it ──
 _log = logging.getLogger("agent_stream")
+_log.setLevel(logging.DEBUG)
+
+# 避免重复添加 handler
 if not _log.handlers:
+    # 控制台 handler — 输出到 stderr 避免被 Streamlit 捕获
+    _ch = logging.StreamHandler(sys.stderr)
+    _ch.setLevel(logging.DEBUG)
+    _ch.setFormatter(logging.Formatter("[%(asctime)s] %(message)s", "%H:%M:%S"))
+    _log.addHandler(_ch)
+
+# 文件 handler 目录 — 延迟初始化（在 _get_log_filehandler 中）
+_log_dir: str | None = None
+
+
+def _get_log_filehandler(session_id: str) -> logging.FileHandler:
+    """为指定 session 创建或获取文件 handler，实现每个 session 一个日志文件。"""
+    global _log_dir
+
     import os
-    from datetime import date
-    # 在项目的根目录创建logs文件夹，如果不存在的话
-    log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
-    os.makedirs(log_dir, exist_ok=True)
+
+    # 初始化日志目录
+    if _log_dir is None:
+        _log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
+        os.makedirs(_log_dir, exist_ok=True)
+
     today = date.today().strftime("%Y-%m-%d")
-    _fh = logging.FileHandler(os.path.join(log_dir, f"{today}_agent_debug.log"), mode="a")
-    _fh.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
-    _log.addHandler(_fh)
-    _log.setLevel(logging.DEBUG)
+    # 文件名格式: {date}_{session_id}_agent_debug.log
+    log_filename = f"{today}_{session_id}_agent_debug.log"
+    log_path = os.path.join(_log_dir, log_filename)
+
+    fh = logging.FileHandler(log_path, mode="a")
+    fh.setFormatter(logging.Formatter("%(asctime)s %(message)s", "%H:%M:%S"))
+    return fh
 
 from langchain_core.callbacks.base import BaseCallbackHandler
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.mongodb import MongoDBSaver
+from agent.compressed_checkpointer import CompressedCheckpointer
 from utils.db import client
 
-from tools.search_tool import search_products
-from tools.price_tool import prices
-from tools.review_tool import analyze_reviews
-from tools.currency_exchange_tool import currency_exchange
 from agent.prompt import SYSTEM_PROMPT
 from config import Config
 
 
-# ── 全局 checkpointer：MongoDBSaver 跨请求共享，持久化保存用户的对话记忆 ───────────────────
-_memory_saver = MongoDBSaver(client)
+# ── 全局 checkpointer：CompressedCheckpointer 跨请求共享，持久化保存用户的对话记忆 ───────────────────
+# 使用惰性初始化，避免导入模块时就建立 MongoDB 相关依赖。
+_memory_saver: CompressedCheckpointer | None = None
+
+
+def _get_memory_saver() -> CompressedCheckpointer:
+    global _memory_saver
+    if _memory_saver is None:
+        _memory_saver = CompressedCheckpointer(MongoDBSaver(client))
+    return _memory_saver
 
 
 def create_shopping_agent():
@@ -56,6 +85,11 @@ def create_shopping_agent():
     )
 
     # 2. 注册工具列表
+    from tools.currency_exchange_tool import currency_exchange
+    from tools.price_tool import prices
+    from tools.review_tool import analyze_reviews
+    from tools.search_tool import search_products
+
     tools = [search_products, prices, analyze_reviews, currency_exchange]
 
     # 3. 创建 LangGraph ReAct Agent，注入 MongoDBSaver 作为持久化后端
@@ -65,7 +99,7 @@ def create_shopping_agent():
         model=llm,
         tools=tools,
         prompt=SystemMessage(content=SYSTEM_PROMPT),
-        checkpointer=_memory_saver,
+        checkpointer=_get_memory_saver(),
     )
 
     return agent
@@ -87,7 +121,7 @@ def run_agent(agent_executor, user_input: str, session_id: str = "default") -> d
         }
     """
     result = agent_executor.invoke(
-        {"messages": [("user", user_input)]},
+        {"messages": [HumanMessage(content=user_input)]},
         config=_make_config(session_id),
     )
 
@@ -130,21 +164,53 @@ class _QueueCallback(BaseCallbackHandler):
         self._q = q
         self._stop_event = stop_event
         self._got_tokens = False
+        self._accumulated_output = ""  # 累积完整输出，用于日志记录
+        self._token_buffer = []  # 缓冲区，用于控制台批量输出
+        self._last_token_log_time = 0
 
     def _check_stop(self):
         if self._stop_event.is_set():
             raise Exception("Generation stopped by user")
 
+    def _flush_token_buffer(self, force: bool = False):
+        """将缓冲区中的 token 批量输出到控制台，减少日志频率。"""
+        import time
+
+        now = time.time()
+        # 每秒或者强制刷新时输出
+        if force or (self._token_buffer and now - self._last_token_log_time >= 1.0):
+            if self._token_buffer:
+                # 合并 token 并显示前几个和总长度
+                buffered_text = "".join(self._token_buffer)
+                preview = buffered_text[:50].replace("\n", "\\n")
+                remaining = len(buffered_text) - 50
+                if remaining > 0:
+                    _log.debug(f"[TOKEN] {repr(preview)}... (+{remaining} chars)")
+                else:
+                    _log.debug(f"[TOKEN] {repr(preview)}")
+                self._token_buffer = []
+                self._last_token_log_time = now
+
     # ── 流式 token ────────────────────────────────────────────────────────────
     def on_llm_new_token(self, token: str, **kwargs) -> None:
         self._check_stop()
         if token:
-            _log.debug(f"[TOKEN] {repr(token[:30])}")
             self._got_tokens = True
+            # 累积完整输出
+            self._accumulated_output += token
+            # 添加到缓冲区用于控制台批量显示
+            self._token_buffer.append(token)
+            self._flush_token_buffer()  # 定期刷新
             self._q.put(("token", token))
 
     def on_llm_end(self, response, **kwargs) -> None:
         """提取每次 LLM 调用后的 token 用量并推送到队列。"""
+        self._flush_token_buffer(force=True)  # 强制刷新剩余 token
+
+        # 将完整输出写入日志
+        if self._accumulated_output:
+            _log.debug(f"[FULL_OUTPUT] ----\n{self._accumulated_output}\n---- (END, {len(self._accumulated_output)} chars)")
+
         try:
             if response.generations and response.generations[0]:
                 message = getattr(response.generations[0][0], "message", None)
@@ -194,6 +260,10 @@ def stream_agent(agent_executor, user_input: str, session_id: str = "default"):
       "token_usage" dict — token 用量统计
       "error"       str  — 异常消息
     """
+    # 为当前 session 添加文件 handler（每个 session 一个日志文件）
+    session_fh = _get_log_filehandler(session_id)
+    _log.addHandler(session_fh)
+
     q: queue.Queue = queue.Queue()
     stop_event = threading.Event()
     cb = _QueueCallback(q, stop_event)
@@ -202,7 +272,7 @@ def stream_agent(agent_executor, user_input: str, session_id: str = "default"):
         _log.debug(f"[RUN] thread started, input={repr(user_input[:40])}, thread_id={session_id}")
         try:
             final_state = agent_executor.invoke(
-                {"messages": [("user", user_input)]},
+                {"messages": [HumanMessage(content=user_input)]},
                 config={
                     **_make_config(session_id),
                     "callbacks": [cb],
@@ -218,12 +288,16 @@ def stream_agent(agent_executor, user_input: str, session_id: str = "default"):
                     output = msgs[-1].content
                     if output:
                         _log.debug("[RUN] Triggering fallback token emit")
+                        # 记录完整输出到日志
+                        _log.debug(f"[FULL_OUTPUT] ----\n{output}\n---- (END, {len(output)} chars)")
                         q.put(("token", output))
         except Exception as exc:
             if str(exc) == "Generation stopped by user":
                 _log.debug("[RUN] Stopped by user")
             else:
+                import traceback
                 _log.debug(f"[RUN] EXCEPTION: {exc}")
+                _log.debug(f"[RUN] Traceback: {traceback.format_exc()}")
                 q.put(("error", str(exc)))
         finally:
             _log.debug("[RUN] thread finishing, putting sentinel")
@@ -245,6 +319,9 @@ def stream_agent(agent_executor, user_input: str, session_id: str = "default"):
     finally:
         stop_event.set()
         thread.join(timeout=1.0)
+        # 移除当前 session 的文件 handler，避免日志混乱
+        _log.removeHandler(session_fh)
+        session_fh.close()
 
 
 if __name__ == '__main__':

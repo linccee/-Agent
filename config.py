@@ -29,6 +29,11 @@ class Config:
     MAX_TOKENS = 2048       # 单次输出最大token数
     MEMORY_TURNS = 10       # 记忆轮数
 
+    # ── 记忆压缩配置 ──
+    ENABLE_MEMORY_COMPRESSION = True   # 是否启用记忆压缩
+    COMPRESSION_THRESHOLD = 3000        # 超过此 token 数时触发压缩
+    RECENT_TURNS_TO_KEEP = 2            # 保留最近2轮完整对话
+
     MONGO_URI = os.getenv("MONGO_URI")
 
     # ── 调试配置 ──

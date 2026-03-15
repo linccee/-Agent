@@ -1,17 +1,21 @@
 """
 utils/db.py
-MongoDB integration for persistent chat sessions.
+MongoDB integration for persistent chat sessions and derived agent state.
 """
-from pymongo import MongoClient
 from datetime import datetime
-from config import Config
 import uuid
+from typing import Any
+
+from pymongo import MongoClient
+
+from config import Config
 
 # Connect to MongoDB
 MONGO_URI = Config.MONGO_URI
 client = MongoClient(MONGO_URI)
 db = client.shop_agent
 sessions_col = db.sessions
+compressed_states_col = db.compressed_agent_states
 
 def get_or_create_session_id(session_id: str = None) -> str:
     """Generate a new UUID if none is provided."""
@@ -57,6 +61,38 @@ def save_session(session_id: str, messages: list, input_tokens: int = 0, output_
     )
     
     return session_id
+
+
+def save_compressed_state(
+    thread_id: str,
+    source_checkpoint_id: str,
+    compressed_messages: list[dict] | None,
+    status: str,
+    error: str | None = None,
+) -> None:
+    """Upsert derived compressed LLM state for a thread."""
+    compressed_states_col.update_one(
+        {"thread_id": thread_id},
+        {"$set": {
+            "source_checkpoint_id": source_checkpoint_id,
+            "compressed_messages": compressed_messages,
+            "status": status,
+            "error": error,
+            "updated_at": datetime.now(),
+        }},
+        upsert=True,
+    )
+
+
+def load_compressed_state(thread_id: str) -> dict[str, Any] | None:
+    """Load persisted compressed LLM state for a thread."""
+    return compressed_states_col.find_one({"thread_id": thread_id})
+
+
+def delete_compressed_state(thread_id: str) -> bool:
+    """Delete persisted compressed LLM state for a thread."""
+    result = compressed_states_col.delete_one({"thread_id": thread_id})
+    return result.deleted_count > 0
 
 def load_session(session_id: str) -> dict:
     """

@@ -44,7 +44,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = session_data.get("messages", [])
 
 # Agent 全局只创建一次（MongoDBSaver 内部管理所有会话的历史）
-if "agent" not in st.session_state:
+if "agent" not in st.session_state or st.session_state.agent is None:
     with st.spinner("正在初始化 Agent…"):
         st.session_state.agent = create_shopping_agent()
 
@@ -59,6 +59,8 @@ if "total_output_tokens" not in st.session_state:
 
 def _get_agent():
     """返回全局唯一的 Agent 实例（MongoDBSaver 负责记忆隔离）。"""
+    if st.session_state.agent is None:
+        st.session_state.agent = create_shopping_agent()
     return st.session_state.agent
 
 
