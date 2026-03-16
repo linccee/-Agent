@@ -1,6 +1,9 @@
-"""Streamlit frontend for the 镜澜导购 shopping assistant."""
+"""
+main.py — Shopping Agent Streamlit Frontend
+Aesthetic: Dark Luxe Terminal
+All CSS lives in assets/style.css — nothing inline here.
+"""
 import pathlib
-import random
 import streamlit as st
 
 from agent.agent_core import create_shopping_agent, stream_agent
@@ -11,8 +14,8 @@ from ui.stop_injection import inject_stop_button_js, remove_stop_button_js
 
 # ── 页面配置 (必须在 Streamlit 启动之前) ────────────────────────────────
 st.set_page_config(
-    page_title="镜澜导购 · 智能选购助手",
-    page_icon="🪞",
+    page_title="ShopAgent · 智能购物顾问",
+    page_icon="🛍️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -42,7 +45,7 @@ if "messages" not in st.session_state:
 
 # Agent 全局只创建一次（MongoDBSaver 内部管理所有会话的历史）
 if "agent" not in st.session_state or st.session_state.agent is None:
-    with st.spinner("正在唤醒镜澜导购…"):
+    with st.spinner("正在初始化 Agent…"):
         st.session_state.agent = create_shopping_agent()
 
 if "total_input_tokens" not in st.session_state:
@@ -52,9 +55,6 @@ if "total_input_tokens" not in st.session_state:
 if "total_output_tokens" not in st.session_state:
     session_data = load_session(st.session_state.session_id)
     st.session_state.total_output_tokens = session_data.get("output_tokens", 0)
-
-if "hero_art_variant" not in st.session_state:
-    st.session_state.hero_art_variant = random.choice(["liquid-core", "floating-prisms"])
 
 
 def _get_agent():
@@ -70,37 +70,11 @@ render_sidebar()
 
 # ── 主聊天区域 ────────────────────────────────────────────────────────────
 st.markdown(
-    f"""
-    <section class="ag-hero glass-panel">
-      <div class="ag-hero-copy">
-        <p class="ag-hero-kicker">MIRROR CURATION · 镜澜导购</p>
-        <h1>把复杂购物决策，整理成一眼就能判断的答案。</h1>
-        <p class="ag-hero-text">
-          连接 Google Shopping、Amazon 与 eBay，帮你完成比价、评论归纳与购买建议，
-          在一轮对话里得到更清晰的购买判断。
-        </p>
-        <div class="ag-hero-tags">
-          <span>多平台比价</span>
-          <span>评论洞察</span>
-          <span>预算决策</span>
-        </div>
-      </div>
-      <div class="ag-hero-aside">
-        <div class="ag-hero-art ag-hero-art--{st.session_state.hero_art_variant}">
-          <div class="ag-hero-art-shell">
-            <span class="ag-hero-glow ag-hero-glow-a"></span>
-            <span class="ag-hero-glow ag-hero-glow-b"></span>
-            <span class="ag-hero-glow ag-hero-glow-c"></span>
-            <span class="ag-prism ag-prism-a"></span>
-            <span class="ag-prism ag-prism-b"></span>
-            <span class="ag-prism ag-prism-c"></span>
-            <span class="ag-hero-sheen"></span>
-          </div>
-          <div class="ag-hero-art-label">{'液态光核' if st.session_state.hero_art_variant == 'liquid-core' else '漂浮棱镜'}</div>
-        </div>
-        <p>为犹豫不决的购买时刻，提供更清晰的结论。</p>
-      </div>
-    </section>
+    """
+    <div class="ag-chat-header">
+      <h2>🛍️ Shop<span>Agent</span></h2>
+      <p>AI 驱动的跨平台购物决策助手 — Google Shopping · Amazon · eBay</p>
+    </div>
     """,
     unsafe_allow_html=True,
 )
@@ -114,7 +88,7 @@ if not st.session_state.messages:
     example_input = render_welcome()
 
 # ── Chat Input ────────────────────────────────────────────────────────────────
-user_input = st.chat_input("描述你的购买目标，例如：帮我挑一台预算 ¥3000 左右的降噪耳机")
+user_input = st.chat_input("告诉我你想买什么，例如：帮我推荐预算¥3000的蓝牙耳机…")
 
 if example_input:
     user_input = example_input
@@ -123,7 +97,7 @@ if user_input:
 
     # 1. 保存 + 立即显示用户消息
     st.session_state.messages.append({"role": "user", "content": user_input})
-    with st.chat_message("user", avatar="🧑"):
+    with st.chat_message("user", avatar="👤"):
         st.markdown(user_input)
 
     # 2. 提前在 session 中占位，保证被强制停止时也能保留片段
@@ -133,7 +107,7 @@ if user_input:
     assistant_msg = {"role": "assistant", "content": "", "steps": steps}
     st.session_state.messages.append(assistant_msg)
 
-    with st.chat_message("assistant", avatar="🪞"):
+    with st.chat_message("assistant", avatar="🤖"):
         # timeline_box: 动态更新思考和工具调用
         timeline_box = st.empty()
         # text_box: 流式传输最终 LLM 字符串

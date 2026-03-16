@@ -4,6 +4,7 @@ ui/stop_injection.py
 """
 import streamlit as st
 
+
 def inject_stop_button_js():
     """
     注入 JS 代码，用于找到 stChatInputSubmitButton，隐藏它，并在上方放置一个红色的 Stop Square 按钮。
@@ -14,6 +15,148 @@ def inject_stop_button_js():
     const parentDoc = window.parent.document;
     let overlay = null;
     let origSubmit = null;
+    let cleanupTimer = null;
+
+    function hideNativeSubmit(button) {
+        if (!button) return;
+        if (button.dataset.agHidden === "true") return;
+        button.dataset.agOrigDisplay = button.style.display || "";
+        button.dataset.agOrigVisibility = button.style.visibility || "";
+        button.dataset.agOrigPointerEvents = button.style.pointerEvents || "";
+        button.dataset.agOrigOpacity = button.style.opacity || "";
+        button.dataset.agOrigBackground = button.style.background || "";
+        button.dataset.agOrigBoxShadow = button.style.boxShadow || "";
+        button.dataset.agHidden = "true";
+        button.style.display = "none";
+        button.style.visibility = "hidden";
+        button.style.pointerEvents = "none";
+        button.style.opacity = "0";
+        button.style.background = "transparent";
+        button.style.boxShadow = "none";
+    }
+
+    function restoreNativeSubmit(button) {
+        if (!button) return;
+        button.style.display = button.dataset.agOrigDisplay || "";
+        button.style.visibility = button.dataset.agOrigVisibility || "";
+        button.style.pointerEvents = button.dataset.agOrigPointerEvents || "";
+        button.style.opacity = button.dataset.agOrigOpacity || "";
+        button.style.background = button.dataset.agOrigBackground || "";
+        button.style.boxShadow = button.dataset.agOrigBoxShadow || "";
+        delete button.dataset.agOrigDisplay;
+        delete button.dataset.agOrigVisibility;
+        delete button.dataset.agOrigPointerEvents;
+        delete button.dataset.agOrigOpacity;
+        delete button.dataset.agOrigBackground;
+        delete button.dataset.agOrigBoxShadow;
+        delete button.dataset.agHidden;
+    }
+
+    function findNativeStopButton() {
+        const directStatusButton = parentDoc.querySelector('[data-testid="stStatusWidget"] button');
+        if (directStatusButton) return directStatusButton;
+
+        const candidateButtons = parentDoc.querySelectorAll('header button, [data-testid="stToolbar"] button, button');
+        for (const button of candidateButtons) {
+            const text = (button.innerText || button.textContent || "").trim().toLowerCase();
+            const aria = (button.getAttribute("aria-label") || "").trim().toLowerCase();
+            const title = (button.getAttribute("title") || "").trim().toLowerCase();
+            if (
+                text.includes("stop") || text.includes("停止") ||
+                aria.includes("stop") || aria.includes("停止") ||
+                title.includes("stop") || title.includes("停止")
+            ) {
+                return button;
+            }
+        }
+        return null;
+    }
+
+    function mountOverlay(chatInput) {
+        overlay = parentDoc.getElementById("ag-custom-stop-btn");
+        if (overlay) return overlay;
+
+        overlay = parentDoc.createElement("button");
+        overlay.id = "ag-custom-stop-btn";
+        overlay.type = "button";
+        overlay.setAttribute("aria-label", "停止生成");
+        overlay.innerHTML = `
+            <span class="ag-stop-label">停止</span>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" aria-hidden="true">
+                <rect x="6" y="6" width="12" height="12" rx="3" fill="#ffffff"></rect>
+            </svg>
+        `;
+
+        Object.assign(overlay.style, {
+            position: 'absolute',
+            right: '12px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            minWidth: '78px',
+            height: '38px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '0 14px',
+            cursor: 'pointer',
+            zIndex: '10000',
+            background: 'linear-gradient(135deg, rgba(248, 109, 126, 0.96), rgba(214, 78, 122, 0.96))',
+            boxShadow: '0 16px 32px rgba(211, 91, 107, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.32)',
+            color: '#ffffff',
+            backdropFilter: 'blur(16px) saturate(180%)',
+            borderRadius: '999px',
+            border: '1px solid rgba(255, 255, 255, 0.28)',
+            fontSize: '13px',
+            fontWeight: '600',
+            letterSpacing: '0.04em',
+            transition: 'transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease',
+        });
+        overlay.style.setProperty('appearance', 'none', 'important');
+        overlay.style.setProperty('-webkit-appearance', 'none', 'important');
+        overlay.style.setProperty('background', 'linear-gradient(135deg, rgba(248, 109, 126, 0.96), rgba(214, 78, 122, 0.96))', 'important');
+        overlay.style.setProperty('color', '#ffffff', 'important');
+        overlay.style.setProperty('border', '1px solid rgba(255, 255, 255, 0.28)', 'important');
+        overlay.style.setProperty('box-shadow', '0 16px 32px rgba(211, 91, 107, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.32)', 'important');
+        overlay.style.setProperty('backdrop-filter', 'blur(16px) saturate(180%)', 'important');
+        overlay.style.setProperty('-webkit-backdrop-filter', 'blur(16px) saturate(180%)', 'important');
+
+        overlay.onmouseenter = () => {
+            overlay.style.transform = 'translateY(calc(-50% - 1px))';
+            overlay.style.boxShadow = '0 20px 36px rgba(211, 91, 107, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.36)';
+        };
+        overlay.onmouseleave = () => {
+            overlay.style.transform = 'translateY(-50%)';
+            overlay.style.boxShadow = '0 16px 32px rgba(211, 91, 107, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.32)';
+        };
+
+        overlay.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            overlay.style.opacity = '0.5';
+            overlay.style.pointerEvents = 'none';
+
+            const nativeStop = findNativeStopButton();
+            if (nativeStop) {
+                nativeStop.click();
+                cleanupTimer = window.setTimeout(() => {
+                    const currentOverlay = parentDoc.getElementById("ag-custom-stop-btn");
+                    if (currentOverlay && currentOverlay.parentNode) {
+                        currentOverlay.parentNode.removeChild(currentOverlay);
+                    }
+                    restoreNativeSubmit(origSubmit);
+                }, 800);
+            } else {
+                overlay.style.opacity = '1';
+                overlay.style.pointerEvents = 'auto';
+                console.log("[Mirror Shopping] Could not find native Streamlit stop button.");
+            }
+        };
+
+        chatInput.style.position = 'relative';
+        chatInput.appendChild(overlay);
+        return overlay;
+    }
 
     const interval = setInterval(() => {
         const chatInput = parentDoc.querySelector('[data-testid="stChatInput"]');
@@ -21,79 +164,21 @@ def inject_stop_button_js():
         
         origSubmit = chatInput.querySelector('[data-testid="stChatInputSubmitButton"]');
         if (origSubmit) {
-             origSubmit.style.opacity = '0';
-             origSubmit.style.pointerEvents = 'none';
+             hideNativeSubmit(origSubmit);
         }
-        
-        overlay = parentDoc.getElementById("ag-custom-stop-btn");
-        if (!overlay) {
-            overlay = parentDoc.createElement("div");
-            overlay.id = "ag-custom-stop-btn";
-            // Red stop square icon
-            overlay.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="#f87171"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>';
-            
-            // Positioning it exactly where the submit button usually sits
-            Object.assign(overlay.style, {
-                position: 'absolute',
-                right: '12px',
-                bottom: '12px',
-                width: '32px',
-                height: '32px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                zIndex: '9999',
-                background: 'rgba(248,113,113,0.1)',
-                borderRadius: '8px',
-                border: '1px solid rgba(248,113,113,0.3)',
-                transition: 'all 0.2s',
-            });
-            
-            overlay.onmouseenter = () => { overlay.style.background = 'rgba(248,113,113,0.2)'; };
-            overlay.onmouseleave = () => { overlay.style.background = 'rgba(248,113,113,0.1)'; };
-            
-            overlay.onclick = function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                // Visual feedback
-                overlay.style.opacity = '0.5';
-                overlay.style.pointerEvents = 'none';
-                
-                // Click the native Streamlit stop button to abort background thread
-                let statusStop = parentDoc.querySelector('[data-testid="stStatusWidget"] button');
-                if (!statusStop) {
-                    // Fallback for older Streamlit versions where stop button is in header
-                    const headers = parentDoc.querySelectorAll('header button');
-                    for (let b of headers) {
-                        if (b.innerText === 'Stop' || b.innerText.includes('Stop')) {
-                            statusStop = b;
-                            break;
-                        }
-                    }
-                }
-                if (statusStop) {
-                    statusStop.click();
-                } else {
-                    console.log("[ShopAgent] Could not find native Streamlit stop button!");
-                }
-            };
-            
-            chatInput.style.position = 'relative';
-            chatInput.appendChild(overlay);
-        }
+        mountOverlay(chatInput);
     }, 200);
 
     // Cleanup when component unmounts (generation finished / stopped)
     window.addEventListener('unload', () => {
         clearInterval(interval);
+        if (cleanupTimer) {
+            window.clearTimeout(cleanupTimer);
+        }
         if (overlay && overlay.parentNode) {
             overlay.parentNode.removeChild(overlay);
         }
-        if (origSubmit) {
-             origSubmit.style.opacity = '';
-             origSubmit.style.pointerEvents = '';
-        }
+        restoreNativeSubmit(origSubmit);
     });
     </script>
     """, height=0)
@@ -113,8 +198,19 @@ def remove_stop_button_js():
     if (chatInput) {
         const origSubmit = chatInput.querySelector('[data-testid="stChatInputSubmitButton"]');
         if (origSubmit) {
-             origSubmit.style.opacity = '';
-             origSubmit.style.pointerEvents = '';
+             origSubmit.style.display = origSubmit.dataset.agOrigDisplay || '';
+             origSubmit.style.visibility = origSubmit.dataset.agOrigVisibility || '';
+             origSubmit.style.pointerEvents = origSubmit.dataset.agOrigPointerEvents || '';
+             origSubmit.style.opacity = origSubmit.dataset.agOrigOpacity || '';
+             origSubmit.style.background = origSubmit.dataset.agOrigBackground || '';
+             origSubmit.style.boxShadow = origSubmit.dataset.agOrigBoxShadow || '';
+             delete origSubmit.dataset.agOrigDisplay;
+             delete origSubmit.dataset.agOrigVisibility;
+             delete origSubmit.dataset.agOrigPointerEvents;
+             delete origSubmit.dataset.agOrigOpacity;
+             delete origSubmit.dataset.agOrigBackground;
+             delete origSubmit.dataset.agOrigBoxShadow;
+             delete origSubmit.dataset.agHidden;
         }
     }
     </script>

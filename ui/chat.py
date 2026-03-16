@@ -4,16 +4,15 @@ Chat display components for the Shopping Agent Streamlit app.
 All HTML/CSS classes are defined in assets/style.css.
 """
 import html
-import json
 import streamlit as st
 
 
 # ── Example Prompts ───────────────────────────────────────────────────────────
 EXAMPLE_PROMPTS = [
-    "帮我推荐一款预算¥5000以内的机械键盘",
-    "我想买一副降噪耳机，预算$200以内",
-    "给我找最好的4K电视，预算¥8000",
-    "PS5现在哪里买最便宜？",
+    "想买一副通勤降噪耳机，预算 ¥2000",
+    "帮我比较适合游戏和办公的 27 寸显示器",
+    "我想挑一台适合拍视频的手机，预算 ¥5000",
+    "现在买 PS5，哪个平台更划算？",
 ]
 
 
@@ -25,26 +24,50 @@ def render_welcome() -> str | None:
     """
     st.markdown(
         """
-        <div class="ag-empty-state">
-          <div class="ag-empty-icon">🛍️</div>
-          <h3>你的智能购物顾问已就绪</h3>
-          <p>告诉我你想买什么，我会搜索最佳选择、比较价格并分析评论。</p>
-        </div>
+        <section class="ag-empty-state glass-panel">
+          <div class="ag-empty-state-copy">
+            <p class="ag-empty-kicker">CURATED SHOPPING ASSISTANT</p>
+            <h3>从“想买点什么”到“应该买哪一个”，只差一次更清晰的对话。</h3>
+            <p>告诉我预算、使用场景或偏好，我会整理平台价格、评论信号与最终建议。</p>
+          </div>
+        </section>
         """,
         unsafe_allow_html=True,
     )
 
-    cols = st.columns(len(EXAMPLE_PROMPTS))
-    for col, prompt in zip(cols, EXAMPLE_PROMPTS):
-        with col:
-            if st.button(prompt, key=f"example_{prompt[:10]}"):
-                return prompt
+    st.markdown('<p class="ag-prompt-label">你可以这样开始</p>', unsafe_allow_html=True)
+
+    for row_index in range(0, len(EXAMPLE_PROMPTS), 2):
+        cols = st.columns(2)
+        for col, prompt in zip(cols, EXAMPLE_PROMPTS[row_index: row_index + 2]):
+            with col:
+                if st.button(prompt, key=f"example_{prompt[:10]}", use_container_width=True):
+                    return prompt
     return None
+
+
+def _timeline_item_html(label: str, title: str, badge: str, item_class: str, status: str = "") -> str:
+    status_html = f'<span class="ag-step-status">{html.escape(status)}</span>' if status else ""
+    return (
+        f'<div class="ag-timeline-item {item_class}">'
+        f'  <div class="ag-timeline-dot"></div>'
+        f'  <div class="ag-timeline-card glass-panel">'
+        f'    <div class="ag-step-header">'
+        f'      <span class="ag-step-badge">{badge}</span>'
+        f'      <div class="ag-step-meta">'
+        f'        <span class="ag-step-kicker">{html.escape(label)}</span>'
+        f'        <span class="ag-step-tool">{html.escape(title)}</span>'
+        f'      </div>'
+        f'      {status_html}'
+        f'    </div>'
+        f'  </div>'
+        f'</div>'
+    )
 
 
 def render_timeline(steps: list[dict], current_thought: str = None, is_complete: bool = False) -> str:
     """
-    将思考和工具调用步骤渲染为 Liquid Glass 风格的垂直时间线。
+    将思考和工具调用步骤渲染为浅色玻璃风格的垂直时间线。
 
     返回 HTML 字符串，以便在流式传输期间使用。
     """
@@ -52,68 +75,54 @@ def render_timeline(steps: list[dict], current_thought: str = None, is_complete:
         return ""
 
     open_attr = "" if is_complete else " open"
-    
-    # 时间线 container 包装器使用details标签
-    html_out = [f'<details class="ag-timeline-details"{open_attr}>']
-    
     step_count = len(steps) + (1 if current_thought else 0)
-    html_out.append(f'<summary class="ag-timeline-summary"><span>⚡ <b>{step_count}</b> 步思考与行动过程</span></summary>')
+    html_out = [f'<details class="ag-timeline-details"{open_attr}>']
+    html_out.append(
+        '<summary class="ag-timeline-summary">'
+        f'  <span class="ag-timeline-summary-label">轨迹回放</span>'
+        f'  <span class="ag-timeline-summary-count">{step_count} 步</span>'
+        '</summary>'
+    )
     html_out.append('<div class="ag-timeline">')
 
     idx = 1
     for step in steps:
-        is_last = (idx == step_count)
-        last_class = " ag-timeline-item-last" if is_last else ""
-        
+        badge = f"{idx:02d}"
         if step.get("type") == "thought":
-            thought_text = html.escape(step.get("content", ""))
             html_out.append(
-f"""<div class="ag-timeline-item{last_class}" style="animation: fadeInUp 0.4s ease forwards;">
-  <div class="ag-timeline-dot"></div>
-  <div class="ag-timeline-content glass-panel" style="background: rgba(26, 26, 36, 0.2);">
-    <div class="ag-step-header" style="margin-bottom: 0;">
-      <span class="ag-step-badge">{idx}</span>
-      <span class="ag-step-tool" style="font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 0.85rem; color: var(--text-primary);">{thought_text}</span>
-    </div>
-  </div>
-</div>"""
+                _timeline_item_html(
+                    label="思考整理",
+                    title=step.get("content", ""),
+                    badge=badge,
+                    item_class="ag-timeline-item-thought",
+                )
             )
         else:
-            # Tool step
-            tool_name = step.get("tool", "unknown")
             output = step.get("output", "")
-            # Determine status based on if output exists
-            status_html = '<span style="color: var(--success); font-weight: normal; font-size: 0.75rem; margin-left: auto;">已完成</span>' if output else '<span style="color: var(--accent); font-weight: normal; font-size: 0.75rem; margin-left: auto;">进行中...</span>'
             html_out.append(
-f"""<div class="ag-timeline-item{last_class}" style="animation: fadeInUp 0.4s ease forwards;">
-  <div class="ag-timeline-dot"></div>
-  <div class="ag-timeline-content glass-panel">
-    <div class="ag-step-header" style="margin-bottom: 0;">
-      <span class="ag-step-badge" style="background: var(--text-muted); color: #fff;">{idx}</span>
-      <span class="ag-step-tool">调用工具: {html.escape(tool_name)}</span>
-      {status_html}
-    </div>
-  </div>
-</div>"""
+                _timeline_item_html(
+                    label="工具调用",
+                    title=f"调用 {step.get('tool', 'unknown')}",
+                    badge=badge,
+                    item_class="ag-timeline-item-tool is-complete" if output else "ag-timeline-item-tool is-running",
+                    status="已完成" if output else "处理中",
+                )
             )
         idx += 1
 
     if current_thought:
         html_out.append(
-f"""<div class="ag-timeline-item ag-timeline-item-last" style="animation: fadeInUp 0.4s ease forwards;">
-  <div class="ag-timeline-dot" style="box-shadow: 0 0 12px var(--accent);"></div>
-  <div class="ag-timeline-content glass-panel" style="background: rgba(245, 166, 35, 0.05); border-color: rgba(245, 166, 35, 0.2);">
-    <div class="ag-step-header" style="margin-bottom: 0;">
-      <span class="ag-step-badge" style="background: var(--accent); box-shadow: 0 0 8px var(--accent-glow);">{idx}</span>
-      <span class="ag-step-tool" style="font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 0.85rem; color: var(--accent);">{html.escape(current_thought)}<span class="ag-thinking-dots" style="display:inline-flex; margin-left:8px;"><span></span><span></span><span></span></span></span>
-    </div>
-  </div>
-</div>"""
+            _timeline_item_html(
+                label="当前思路",
+                title=current_thought,
+                badge=f"{idx:02d}",
+                item_class="ag-timeline-item-current is-running",
+                status="生成中",
+            )
         )
 
-    html_out.append('</div></details>')
+    html_out.append("</div></details>")
     return "".join(html_out)
-
 
 
 def render_history(messages: list[dict]) -> None:
@@ -124,10 +133,10 @@ def render_history(messages: list[dict]) -> None:
     """
     for msg in messages:
         if msg["role"] == "user":
-            with st.chat_message("user", avatar="👤"):
+            with st.chat_message("user", avatar="🧑"):
                 st.markdown(msg["content"])
         else:
-            with st.chat_message("assistant", avatar="🤖"):
+            with st.chat_message("assistant", avatar="🪞"):
                 if msg.get("steps"):
                     st.markdown(render_timeline(msg["steps"], is_complete=True), unsafe_allow_html=True)
                 st.markdown(msg["content"])
