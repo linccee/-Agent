@@ -244,8 +244,9 @@ class _QueueCallback(BaseCallbackHandler):
         }))
 
     def on_tool_end(self, output: str, **kwargs) -> None:
-        _log.debug(f"[TOOL_END] len={len(str(output))}")
         raw = str(output)
+        _log.debug(f"[TOOL_END] len={len(raw)}")
+        _log.debug(f"[TOOL_OUTPUT] ----\n{raw}\n---- (END, {len(raw)} chars)")
         self._q.put(("tool_end", raw[:300] + "…" if len(raw) > 300 else raw))
 
 
