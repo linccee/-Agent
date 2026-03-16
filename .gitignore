@@ -32,6 +32,7 @@ logs/
 .agents/
 .claude/
 .jbeval/
+.codex/
 
 # tests
 test/
